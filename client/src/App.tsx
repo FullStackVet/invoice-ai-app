@@ -1,91 +1,163 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Container,
+  Box,
+  CssBaseline,
+  ThemeProvider,
+  createTheme,
+} from "@mui/material";
+import ClientList from "./components/ClientList";
+import ClientForm from "./components/ClientForm";
+import InvoiceList from "./components/InvoiceList";
+import InvoiceForm from "./components/InvoiceForm";
+import Dashboard from "./components/Dashboard";
+import { healthCheck } from "./services/api"; // Import the healthCheck function
 import "./App.css";
 
-// Interface For Health Check
-interface HealthStatus {
-  status: string;
-  message: string;
-}
+// Theme
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: "#1976d2",
+    },
+    secondary: {
+      main: "#dc004e",
+    },
+  },
+});
 
-// Interface For Dummy Invoices
-interface Invoice {
-  id: number;
-  client: string;
-  amount: number;
-}
+type View =
+  | "dashboard"
+  | "clients"
+  | "invoices"
+  | "create-client"
+  | "create-invoice";
 
 function App() {
-  const [health, setHealth] = useState<HealthStatus | null>(null);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<View>("dashboard");
+  const [apiStatus, setApiStatus] = useState<"online" | "offline" | "checking">(
+    "checking"
+  );
 
-  // fetch health status
-  const fetchHealth = async () => {
-    try {
-      const response = await fetch("http://localhost:8000/api/health");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data: HealthStatus = await response.json();
-      setHealth(data);
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  };
-
-  // fetch dummy invoices
-  const fetchInvoices = async () => {
-    try {
-      const response = await fetch("http://localhost:8000/api/invoices");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data: Invoice[] = await response.json();
-      setInvoices(data);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // fetch data on component mount
+  // Check API health on mount
   useEffect(() => {
-    fetchHealth();
-    fetchInvoices();
+    const checkHealth = async () => {
+      // Fixed: Define checkHealth function
+      try {
+        await healthCheck(); // Now using the imported function
+        setApiStatus("online");
+      } catch (error) {
+        setApiStatus("offline");
+        console.error("API Health Check failed", error);
+      }
+    };
+
+    checkHealth();
+    // Check every 30 seconds
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
   }, []);
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  const renderView = () => {
+    // Fix the type issue by casting setCurrentView to accept strings
+    const navigate = (view: string) => setCurrentView(view as View);
 
-  if (error) {
-    return <div>Error: {error}</div>;
-  }
+    switch (currentView) {
+      case "dashboard":
+        return <Dashboard onNavigate={navigate} />;
+      case "clients":
+        return <ClientList onNavigate={navigate} />;
+      case "invoices":
+        return <InvoiceList onNavigate={navigate} />;
+      case "create-client":
+        return <ClientForm onNavigate={navigate} />;
+      case "create-invoice":
+        return <InvoiceForm onNavigate={navigate} />;
+      default:
+        return <Dashboard onNavigate={navigate} />;
+    }
+  };
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>InvoiceAI App</h1>
-        {/* Display health status */}
-        {health && (
-          <p>
-            Backend Status: <strong>{health.status}</strong> - {health.message}
-          </p>
-        )}
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <div className="App">
+        <AppBar position="static">
+          <Toolbar>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              InvoiceAI App
+            </Typography>
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  color: apiStatus === "online" ? "#a5d6a7" : "#ef9a9a",
+                }}
+              >
+                API: {apiStatus.toUpperCase()}
+              </Typography>
+            </Box>
+          </Toolbar>
+        </AppBar>
 
-        {/* Display the dummy invoices */}
-        <h2>Invoices</h2>
-        <ul>
-          {invoices.map((invoice) => (
-            <li key={invoice.id}>
-              {invoice.client} - ${invoice.amount}
-            </li>
-          ))}
-        </ul>
-      </header>
-    </div>
+        <Box sx={{ display: "flex", minHeight: "calc(100vh - 64px)" }}>
+          {/* Sidebar Navigation */}
+          <Box
+            sx={{
+              width: 200,
+              bgcolor: "background.paper",
+              borderRight: "1px solid",
+              borderColor: "divider",
+              p: 2,
+            }}
+          >
+            <Typography variant="h6" gutterBottom>
+              Navigation
+            </Typography>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {(
+                [
+                  { key: "dashboard", label: "Dashboard" },
+                  { key: "clients", label: "Clients" },
+                  { key: "invoices", label: "Invoices" },
+                ] as const
+              ).map((item) => (
+                <Box
+                  key={item.key}
+                  onClick={() => setCurrentView(item.key)}
+                  sx={{
+                    p: 1,
+                    borderRadius: 1,
+                    cursor: "pointer",
+                    bgcolor:
+                      currentView === item.key ? "primary.main" : "transparent",
+                    color: currentView === item.key ? "white" : "text.primary",
+                    "&:hover": {
+                      bgcolor:
+                        currentView === item.key
+                          ? "primary.dark"
+                          : "action.hover",
+                    },
+                  }}
+                >
+                  {item.label}
+                </Box>
+              ))}
+            </Box>
+          </Box>
+
+          {/* Main Content */}
+          <Box sx={{ flexGrow: 1, p: 3 }}>
+            <Container maxWidth="lg">{renderView()}</Container>
+          </Box>
+        </Box>
+      </div>
+    </ThemeProvider>
   );
 }
 
