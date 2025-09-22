@@ -50,3 +50,7 @@ logs/
 
 # Personal Notes
 notes/
+
+# Database
+*.db
+*.sqlite3
