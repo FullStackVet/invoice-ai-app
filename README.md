@@ -31,3 +31,15 @@ AI-Enhanced invoicing app via React (frontend) + FastAPI (backend)
    pip install -r requirements.txt
    uvicorn main:app --reload
    ```
+
+## Database Seeding
+
+The application includes a seed script to populate the database with sample data for testing and development.
+
+### Running the Seed Script
+
+1. **Make sure your virtual environment is activated**:
+   ```bash
+   cd server
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
